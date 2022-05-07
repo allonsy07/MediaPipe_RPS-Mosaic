@@ -49,6 +49,7 @@ while cap.isOpened():
     if results.multi_hand_landmarks is not None:
         labels = []
         joints = []
+        confidence = []
         for result in results.multi_hand_landmarks:
             joint = np.zeros((21,3)) # hand landmark는 21개의 point가 존재하고, (x,y,z)좌표로 표현된다.
 
@@ -72,9 +73,9 @@ while cap.isOpened():
             angle = np.degrees(angle)
 
             data = np.array([angle], dtype = np.float32)
-            _, output, _, _ = knn.findNearest(data, 3)
+            ret, output, neighbor, distance = knn.findNearest(data, 3)
             idx = int(output[0][0])
-
+            score = 0
             if idx == 3:
                 x1, y1 = tuple((joint.min(axis=0)[:2] * [img.shape[1], img.shape[0]] * 0.95).astype(int))
                 x2, y2 = tuple((joint.max(axis=0)[:2] * [img.shape[1], img.shape[0]] * 1.05).astype(int))
@@ -84,9 +85,12 @@ while cap.isOpened():
                 fy_img = cv2.resize(fy_img, dsize=(x2 - x1, y2 - y1), interpolation=cv2.INTER_NEAREST)
 
                 img[y1:y2, x1:x2] = fy_img
-
+                outputs = neighbor[0]
+                score = sum(outputs==3) / len(outputs)
+                
             labels.append(idx)
             joints.append(joint)
+            confidence.append(score)
 
         if len(labels) == 2:
             cv2.putText(img, "RPS GAME".format(len(file)) , (400, 90), font, 3, (0,75,155), 3, cv2.LINE_AA)
@@ -101,8 +105,10 @@ while cap.isOpened():
 
             if labels[0] == 3:
                 cv2.putText(img, "LANGUAGE!", (alpha1, beta1), font, 2, (0,0,255), 2, cv2.LINE_AA)
+                cv2.putText(img, "Confidence : {}".format(confidence[0]), (alpha1+200, beta1+20), font, 0.5, (0,0,200), 1, cv2.LINE_AA)
             if labels[1] == 3:
                 cv2.putText(img, "LANGUAGE!", (alpha2, beta2), font, 2, (0,0,255), 2, cv2.LINE_AA)
+                cv2.putText(img, "Confidence : {}".format(confidence[1]), (alpha2+200, beta2+20), font, 0.5, (0,0,200), 1, cv2.LINE_AA)
             elif labels[1] == 0: # R
                 if labels[0] == 0: # R
                     cv2.putText(img, "DRAW!", (alpha1, beta1), font, 2, (0,155,155), 2, cv2.LINE_AA)
